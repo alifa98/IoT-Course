@@ -11,8 +11,6 @@ WiFiServer server(80);
 void setup ()
 {
   Serial.begin(9600);
-  Serial.println();
-  Serial.print("System Start");
 
   WiFi.mode(WIFI_AP);  
   WiFi.softAP(ssid);
