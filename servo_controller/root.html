@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+
+<body> <input type="range" min="0" max="180" value="50" id="myRange"> <br> <span id="labelShow"></span>
+    <script>
+        let handlerFunc = function () {
+            let value = document.getElementById("myRange").value;
+            document.getElementById("labelShow").innerHTML = value;
+            const xhttp = new XMLHttpRequest();
+            xhttp.open("POST", "/servo");
+            xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhttp.send("value=" + value);
+        };
+        document.getElementById("myRange").addEventListener("change", handlerFunc);
+    </script>
+</body>
+
+</html>
