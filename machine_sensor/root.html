@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    0 <input type="range" style="width: 85%;" min="0" max="3000" id="myRange"> 3000
+    <br>
+    Distance: <span id="labelShow"></span>
+    <script>
+        setInterval(function () {
+            const xhttp = new XMLHttpRequest();
+            xhttp.onload = function () {
+                document.getElementById("myRange").value = this.responseText;
+                document.getElementById("labelShow").innerHTML = this.responseText;
+            };
+            xhttp.open("GET", "/sensor");
+            xhttp.send();
+        }, 500);
+    </script>
+</body>
+
+</html>
