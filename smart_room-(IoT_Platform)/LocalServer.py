@@ -40,8 +40,10 @@ def admin_login_db(username, password):
 def check_admin_auth_db(session_id):
     db_connection = sqlite3.connect('localServer.db')
     cursor = db_connection.cursor()
+    # We did not consider `EXPIRE_DATE` because the assignment had not mentioned it, but if we wanted to consider, we could add `AND s.EXPIRE_DATE > now()` to the WHERE clause in the following query (notice: the sqlite does not have now() function like mysql, so it should be replaced with something that works in Sqlite)
     cursor.execute(
-        "SELECT * FROM ADMIN_SESSION s WHERE s.ID = ? AND s.EXPIRE_DATE > now();", (session_id,))
+        "SELECT * FROM ADMIN_SESSION s WHERE s.ID = ? ;", (session_id,)
+    )
     return cursor.fetchone() is not None
 
 
@@ -125,11 +127,14 @@ def admin_user_register():
     body_data = request.get_json()
     check_admin_session(body_data)
 
-    user_id = check_empty_error(body_data["id"])
     password = check_empty_error(body_data["password"])
     room = check_empty_error(body_data["room"])
-
+    user_id = 8
+    # FIXME: request to the main server
+    # TODO: main  server should insert the user and return a valid and unique use id
     admin_user_register_db(user_id, password, room)
+
+    return create_response(True, {"user_id": user_id})
 
 
 @server.route("/api/admin/activities", methods=["POST"])
