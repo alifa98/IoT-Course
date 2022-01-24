@@ -4,20 +4,25 @@ import hashlib
 import secrets
 import string
 from flask import *
-import json
 import sqlite3
-
-from markupsafe import re
+import requests
 
 from CustomError import CustomError
+from Utils import catch_all_exceptions, check_empty_error, create_response
 
 server = Flask(__name__)
 
+LOCAL_SQLITE_DB_PATH = "localServer.db"
+LOCAL_OFFICE_ID = 1
+MAIN_SERVER_API_URL = "http://localhost:5001"
+MAIN_SERVER_API_KEY = "9634024"
+DEFAULT_REQUEST_HEAAADER = {"Content-Type": "application/json"}
 
 ### Database ###
 
+
 def admin_login_db(username, password):
-    db_connection = sqlite3.connect('localServer.db')
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
     cursor = db_connection.cursor()
     cursor.execute(
         "SELECT * FROM ADMINS WHERE USER = ? and PASSWORD = ?;", (username, hashlib.md5(password.encode()).hexdigest()))
@@ -38,7 +43,7 @@ def admin_login_db(username, password):
 
 
 def check_admin_auth_db(session_id):
-    db_connection = sqlite3.connect('localServer.db')
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
     cursor = db_connection.cursor()
     # We did not consider `EXPIRE_DATE` because the assignment had not mentioned it, but if we wanted to consider, we could add `AND s.EXPIRE_DATE > now()` to the WHERE clause in the following query (notice: the sqlite does not have now() function like mysql, so it should be replaced with something that works in Sqlite)
     cursor.execute(
@@ -48,7 +53,7 @@ def check_admin_auth_db(session_id):
 
 
 def admin_register_db(username, password):
-    db_connection = sqlite3.connect('localServer.db')
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
     cursor = db_connection.cursor()
     cursor.execute("INSERT INTO ADMINS VALUES (?, ?)",
                    (username, hashlib.md5(password.encode()).hexdigest()))
@@ -57,7 +62,7 @@ def admin_register_db(username, password):
 
 
 def admin_user_register_db(user_id, password, room):
-    db_connection = sqlite3.connect('localServer.db')
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
     cursor = db_connection.cursor()
     cursor.execute("INSERT INTO USERS VALUES (?, ?, ?)",
                    (int(user_id), hashlib.md5(password.encode()).hexdigest(), int(room)))
@@ -66,30 +71,6 @@ def admin_user_register_db(user_id, password, room):
 
 
 ### Utilities ###
-
-# this decorator catches and handles all exceptions
-def catch_all_exceptions(func):
-    @wraps(func)
-    def decorated_function(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except CustomError as e:
-            return create_response(False, {"reason": e.message})
-        except Exception as e:
-            return create_response(False, {"reason": e.__class__.__name__})
-    return decorated_function
-
-
-def check_empty_error(input_string: string, key="an input"):
-    if not input_string.strip():
-        raise CustomError(key + " is empty")
-    return input_string
-
-
-def create_response(is_successful: bool, data={}):
-    return json.dumps({"status": "success" if is_successful else "error"} | data)
-
-
 def check_admin_session(json_body):
     try:
         session_id = check_empty_error(json_body["sessionId"])
@@ -100,7 +81,6 @@ def check_admin_session(json_body):
 
 
 ### Routes ###
-
 @server.route("/api/admin/login", methods=["POST"])
 @catch_all_exceptions
 def admin_login():
@@ -129,9 +109,19 @@ def admin_user_register():
 
     password = check_empty_error(body_data["password"])
     room = check_empty_error(body_data["room"])
-    user_id = 8
-    # FIXME: request to the main server
-    # TODO: main  server should insert the user and return a valid and unique use id
+    main_server_request_payload = {
+        "apiKey": MAIN_SERVER_API_KEY,
+        "password": password,
+        "office": LOCAL_OFFICE_ID,
+        "room": room
+    }
+    main_server_json_result = requests.post(MAIN_SERVER_API_URL+"/api/user/register",
+                                            data=json.dumps(main_server_request_payload), headers=DEFAULT_REQUEST_HEAAADER).json()
+    if(main_server_json_result["status"] != "success"):
+        raise CustomError(main_server_json_result["reason"])
+
+    user_id = main_server_json_result["user_id"]
+
     admin_user_register_db(user_id, password, room)
 
     return create_response(True, {"user_id": user_id})
