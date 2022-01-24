@@ -54,8 +54,13 @@ def admin_register_db(username, password):
     db_connection.close()
 
 
-def admin_user_register_db(username, password):
-    pass
+def admin_user_register_db(user_id, password, room):
+    db_connection = sqlite3.connect('localServer.db')
+    cursor = db_connection.cursor()
+    cursor.execute("INSERT INTO USERS VALUES (?, ?, ?)",
+                   (int(user_id), hashlib.md5(password.encode()).hexdigest(), int(room)))
+    db_connection.commit()
+    db_connection.close()
 
 
 ### Utilities ###
@@ -79,17 +84,17 @@ def check_empty_error(input_string: string, key="an input"):
     return input_string
 
 
-def create_response(isSuccessful: bool, data={}):
-    return json.dumps({"status": "success" if isSuccessful else "error"} | data)
+def create_response(is_successful: bool, data={}):
+    return json.dumps({"status": "success" if is_successful else "error"} | data)
 
 
-def check_admin_auth(json_body):
+def check_admin_session(json_body):
     try:
         session_id = check_empty_error(json_body["sessionId"])
         if(not check_admin_auth_db(session_id)):
             raise CustomError("Invalid Token")
     except Exception:
-        raise CustomError("Error in admin auth checking")
+        raise CustomError("Error in admin's session checking")
 
 
 ### Routes ###
@@ -115,8 +120,16 @@ def admin_register():
 
 
 @server.route("/api/admin/user/register", methods=["POST"])
+@catch_all_exceptions
 def admin_user_register():
-    pass
+    body_data = request.get_json()
+    check_admin_session(body_data)
+
+    user_id = check_empty_error(body_data["id"])
+    password = check_empty_error(body_data["password"])
+    room = check_empty_error(body_data["room"])
+
+    admin_user_register_db(user_id, password, room)
 
 
 @server.route("/api/admin/activities", methods=["POST"])
