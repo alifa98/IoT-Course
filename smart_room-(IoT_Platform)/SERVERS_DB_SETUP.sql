@@ -1,0 +1,41 @@
+--- LOCAL SERVER
+CREATE TABLE `ADMINS` (
+            `USER` CHAR(256) PRIMARY KEY NOT NULL,
+            `PASSWORD` CHAR(512) NOT NULL
+);
+
+CREATE TABLE `USERS` (
+            `ID` INT PRIMARY KEY NOT NULL,
+            `PASSWORD` CHAR(512) NOT NULL,
+            `ROOM` INT NOT NULL
+);
+
+CREATE TABLE `ADMIN_SESSION` (
+            `ID` CHAR(16) PRIMARY KEY NOT NULL,
+            `USER` CHAR(256) NOT NULL,
+            `LOGIN_DATE` DATETIME NOT NULL,
+            `EXPIRE_DATE` DATETIME NOT NULL
+);
+
+--- MAIN SERVER
+CREATE TABLE `USERS` (
+            `ID` INT PRIMARY KEY NOT NULL,
+            `PASSWORD` CHAR(512) NOT NULL,
+            `LIGHT` INT NOT NULL,
+            `OFFICE` INT NOT NULL,
+            `ROOM` INT NOT NULL
+);
+
+CREATE TABLE `ACTIVITY` (
+            `USER` INT NOT NULL,
+            `OFFICE` INT NOT NULL,
+            `DATETIME` DATETIME NOT NULL,
+            `TYPE` CHAR(512) NOT NULL
+);
+
+CREATE TABLE `OFFICE` (
+            `ID` INT PRIMARY KEY NOT NULL,
+            `NAME` TEXT NOT NULL
+);
+
+

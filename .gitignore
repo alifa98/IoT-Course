@@ -1,1 +1,3 @@
-.vscode/c_cpp_properties.json
+smart_room-(IoT_Platform)/iotEnv/**
+**/__pycache__/**
+**/.vscode/**
