@@ -1,6 +1,7 @@
 import datetime
 from functools import wraps
 import hashlib
+from pickle import TRUE
 import secrets
 import string
 from flask import *
@@ -16,7 +17,7 @@ LOCAL_SQLITE_DB_PATH = "localServer.db"
 LOCAL_OFFICE_ID = 1
 MAIN_SERVER_API_URL = "http://localhost:5001"
 MAIN_SERVER_API_KEY = "9634024"
-DEFAULT_REQUEST_HEAAADER = {"Content-Type": "application/json"}
+DEFAULT_REQUEST_HEADER = {"Content-Type": "application/json"}
 
 ### Database ###
 
@@ -34,6 +35,30 @@ def admin_login_db(username, password):
         expire_time = login_time + datetime.timedelta(hours=2)
         cursor.execute("INSERT INTO ADMIN_SESSION VALUES (?, ?, ?, ?);",
                        (session_id, username, login_time, expire_time))
+        db_connection.commit()
+        db_connection.close()
+        return session_id
+
+    db_connection.close()
+    raise CustomError("Invalid username or password")
+
+
+def user_login_db(username, password):
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
+    cursor = db_connection.cursor()
+    cursor.execute(
+        "SELECT * FROM USERS WHERE ID = ? and PASSWORD = ?;",
+        (username, hashlib.md5(password.encode()).hexdigest())
+    )
+
+    if cursor.fetchone() is not None:
+        session_id = ''.join(secrets.choice(
+            string.ascii_letters + string.digits) for _ in range(16))
+        login_time = datetime.datetime.now()
+        cursor.execute(
+            "INSERT INTO USER_SESSION VALUES (?, ?, ?, ?);",
+            (session_id, username, login_time, TRUE)
+        )
         db_connection.commit()
         db_connection.close()
         return session_id
@@ -109,32 +134,64 @@ def admin_user_register():
 
     password = check_empty_error(body_data["password"])
     room = check_empty_error(body_data["room"])
+
     main_server_request_payload = {
         "apiKey": MAIN_SERVER_API_KEY,
         "password": password,
         "office": LOCAL_OFFICE_ID,
         "room": room
     }
+
     main_server_json_result = requests.post(MAIN_SERVER_API_URL+"/api/user/register",
-                                            data=json.dumps(main_server_request_payload), headers=DEFAULT_REQUEST_HEAAADER).json()
+                                            data=json.dumps(main_server_request_payload), headers=DEFAULT_REQUEST_HEADER).json()
     if(main_server_json_result["status"] != "success"):
         raise CustomError(main_server_json_result["reason"])
 
     user_id = main_server_json_result["user_id"]
-
     admin_user_register_db(user_id, password, room)
-
     return create_response(True, {"user_id": user_id})
 
 
 @server.route("/api/admin/activities", methods=["POST"])
+@catch_all_exceptions
 def admin_activities():
-    pass
+    body_data = request.get_json()
+    check_admin_session(body_data)
+
+    main_server_request_payload = {
+        "apiKey": MAIN_SERVER_API_KEY,
+        "office": LOCAL_OFFICE_ID
+    }
+
+    main_server_json_result = requests.post(MAIN_SERVER_API_URL+"/api/user/activities",
+                                            data=json.dumps(main_server_request_payload), headers=DEFAULT_REQUEST_HEADER).json()
+    if(main_server_json_result["status"] != "success"):
+        raise CustomError(main_server_json_result["reason"])
+
+    activities = main_server_json_result["activities"]
+    return create_response(True, {"activities": activities})
 
 
 @server.route("/api/user/login", methods=["POST"])
+@catch_all_exceptions
 def user_login():
-    pass
+    body_data = request.get_json()
+    user_id = check_empty_error(body_data["user_id"])
+    password = check_empty_error(body_data["password"])
+    session_id = user_login_db(user_id, password)
+
+    main_server_request_payload = {
+        "apiKey": MAIN_SERVER_API_KEY,
+        "office": LOCAL_OFFICE_ID,
+        "user_id": user_id
+    }
+
+    main_server_json_result = requests.post(MAIN_SERVER_API_URL+"/api/user/login",
+                                            data=json.dumps(main_server_request_payload), headers=DEFAULT_REQUEST_HEADER).json()
+    if(main_server_json_result["status"] != "success"):
+        raise CustomError(main_server_json_result["reason"])
+
+    return create_response(True, {"sessionId": session_id, "light": main_server_json_result["light"]})
 
 
 @server.route("/api/user/<usr>", methods=["GET"])

@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import sqlite3
 from flask import *
@@ -32,7 +33,47 @@ def user_register_db(password, office, room):
     return user_id
 
 
+def get_office_activity_db(office):
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
+    cursor = db_connection.cursor()
+    query = cursor.execute(
+        "SELECT * FROM `ACTIVITY` WHERE `OFFICE` = ? ;",
+        (office,)
+    )
+    columns_name = [str(c[0]).lower() for c in query.description]
+    activity_rows = [dict(zip(columns_name, row)) for row in query.fetchall()]
+    db_connection.close()
+
+    return activity_rows
+
+
+def check_user_and_log_activity_and_get_light_db(user_id, office):
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
+    cursor = db_connection.cursor()
+
+    cursor.execute(
+        "SELECT `LIGHT` FROM `USERS` WHERE `ID` = ? and `OFFICE` = ? ;",
+        (user_id, office)
+    )
+
+    user_row = cursor.fetchone()
+
+    if user_row is not None:
+        cursor.execute(
+            "INSERT INTO ACTIVITY VALUES (?, ?, ?, ?);",
+            (user_id, office, datetime.datetime.now(), "LOGIN")
+        )
+        db_connection.commit()
+        db_connection.close()
+        return user_row[0]  # light value
+
+    db_connection.close()
+    raise CustomError("Error in Activity Logging")
+
+
 ## Utiles ##
+
+
 def check_server_api_key(json_body):
     try:
         if SERVER_API_KEY != json_body["apiKey"]:
@@ -61,10 +102,32 @@ def user_register():
     return create_response(True, {"user_id": user_id})
 
 
-@server.route("/api/user/<usr>", methods=["GET"])
-def user_setting(usr):
-    lights_value = request.args.get("lights")
-    return "<h1>Hello, " + usr + ", " + lights_value + "</h1>"
+@server.route("/api/user/activities", methods=["POST"])
+@catch_all_exceptions
+def get_user_office_activities():
+    body_data = request.get_json()
+    check_server_api_key(body_data)
+
+    office = check_empty_error(body_data["office"])
+
+    office_activity_list = get_office_activity_db(office)
+
+    return create_response(True, {"activities": office_activity_list})
+
+
+@server.route("/api/user/login", methods=["POST"])
+@catch_all_exceptions
+def user_login():
+    body_data = request.get_json()
+    check_server_api_key(body_data)
+
+    user_id = check_empty_error(body_data["user_id"])
+    office = check_empty_error(body_data["office"])
+
+    # this line checks that user is in the database and ensure that it belongs to the office.
+    light = check_user_and_log_activity_and_get_light_db(user_id, office)
+
+    return create_response(True, {"light": light})
 
 
 if __name__ == '__main__':
