@@ -71,6 +71,23 @@ def check_user_and_log_activity_and_get_light_db(user_id, office):
     raise CustomError("Error in Activity Logging")
 
 
+def update_user_light_db(user_id, office, light):
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
+    cursor = db_connection.cursor()
+
+    cursor.execute(
+        "UPDATE USERS SET `LIGHT` = ? WHERE `ID` = ? AND `OFFICE` = ?;",
+        (light, user_id, office)
+    )
+
+    affected_rows = cursor.rowcount
+
+    db_connection.commit()
+    db_connection.close()
+
+    if affected_rows != 1:
+        raise CustomError("Error in Light Updating")
+
 ## Utiles ##
 
 
@@ -128,6 +145,21 @@ def user_login():
     light = check_user_and_log_activity_and_get_light_db(user_id, office)
 
     return create_response(True, {"light": light})
+
+
+@server.route("/api/user/setting", methods=["POST"])
+@catch_all_exceptions
+def user_setting():
+    body_data = request.get_json()
+    check_server_api_key(body_data)
+
+    user_id = check_empty_error(body_data["user_id"])
+    light = check_empty_error(body_data["light"])
+    office = check_empty_error(body_data["office"])
+
+    update_user_light_db(user_id, office, light)
+
+    return create_response(True)
 
 
 if __name__ == '__main__':

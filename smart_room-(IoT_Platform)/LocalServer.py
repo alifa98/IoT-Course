@@ -57,7 +57,7 @@ def user_login_db(username, password):
         login_time = datetime.datetime.now()
         cursor.execute(
             "INSERT INTO USER_SESSION VALUES (?, ?, ?, ?);",
-            (session_id, username, login_time, TRUE)
+            (session_id, username, login_time, 1)
         )
         db_connection.commit()
         db_connection.close()
@@ -75,6 +75,16 @@ def check_admin_auth_db(session_id):
         "SELECT * FROM ADMIN_SESSION s WHERE s.ID = ? ;", (session_id,)
     )
     return cursor.fetchone() is not None
+
+
+def get_session_user_id(session_id):
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
+    cursor = db_connection.cursor()
+    cursor.execute(
+        "SELECT `USER` FROM USER_SESSION WHERE `ID` = ? and `VALID` = 1;",
+        (session_id,)
+    )
+    return cursor.fetchone()
 
 
 def admin_register_db(username, password):
@@ -103,6 +113,17 @@ def check_admin_session(json_body):
             raise CustomError("Invalid Token")
     except Exception:
         raise CustomError("Error in admin's session checking")
+
+
+def check_user_session_and_put_session_user_id(json_body):
+    try:
+        session_id = check_empty_error(json_body["sessionId"])
+        if(not get_session_user_id(session_id)):
+            raise CustomError("Invalid Login")
+        else:
+            json_body["session_user_id"] = get_session_user_id(session_id)[0]
+    except Exception:
+        raise CustomError("Error in user's session checking")
 
 
 ### Routes ###
@@ -178,6 +199,7 @@ def user_login():
     body_data = request.get_json()
     user_id = check_empty_error(body_data["user_id"])
     password = check_empty_error(body_data["password"])
+
     session_id = user_login_db(user_id, password)
 
     main_server_request_payload = {
@@ -194,10 +216,35 @@ def user_login():
     return create_response(True, {"sessionId": session_id, "light": main_server_json_result["light"]})
 
 
-@server.route("/api/user/<usr>", methods=["GET"])
+@server.route("/api/user/<usr>", methods=["POST"])
+@catch_all_exceptions
 def user_setting(usr):
-    lights_value = request.args.get("lights")
-    return "<h1>Hello, " + usr + ", " + lights_value + "</h1>"
+    body_data = request.get_json()
+
+    check_user_session_and_put_session_user_id(body_data)
+
+    lights = check_empty_error(int(body_data["lights"]), "lights value")
+    user_id = check_empty_error(int(usr))
+
+    if(lights < 0 or lights > 100):
+        raise CustomError("Invalid light value")
+
+    if(user_id != body_data["session_user_id"]):
+        raise CustomError("Access Denied")
+
+    main_server_request_payload = {
+        "apiKey": MAIN_SERVER_API_KEY,
+        "office": LOCAL_OFFICE_ID,
+        "user_id": user_id,
+        "light": lights
+    }
+
+    main_server_json_result = requests.post(MAIN_SERVER_API_URL+"/api/user/setting",
+                                            data=json.dumps(main_server_request_payload), headers=DEFAULT_REQUEST_HEADER).json()
+    if(main_server_json_result["status"] != "success"):
+        raise CustomError(main_server_json_result["reason"])
+
+    return create_response(True)
 
 
 if __name__ == '__main__':
