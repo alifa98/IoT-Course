@@ -88,13 +88,30 @@ def update_user_light_db(user_id, office, light):
     if affected_rows != 1:
         raise CustomError("Error in Light Updating")
 
+
+def get_office_by_api_key_db(api_key):
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
+    cursor = db_connection.cursor()
+    cursor.execute(
+        "SELECT `ID` FROM `OFFICE` WHERE `API_KEY` = ? ;",
+        (api_key,)
+    )
+    office_row = cursor.fetchone()
+    db_connection.close()
+
+    return office_row
+
 ## Utiles ##
 
 
-def check_server_api_key(json_body):
+def check_local_server_api_key_and_inject_office(json_body):
     try:
-        if SERVER_API_KEY != json_body["apiKey"]:
+        api_key = check_empty_error(json_body["apiKey"], "ApiKey")
+        office = get_office_by_api_key_db(api_key)
+        if not office:
             raise CustomError("Invalid API Key")
+        else:
+            json_body["office"] = office[0]
     except CustomError as e:
         raise e
     except Exception:
@@ -108,7 +125,7 @@ def check_server_api_key(json_body):
 @catch_all_exceptions
 def user_register():
     body_data = request.get_json()
-    check_server_api_key(body_data)
+    check_local_server_api_key_and_inject_office(body_data)
 
     password = check_empty_error(body_data["password"])
     office = check_empty_error(body_data["office"])
@@ -123,7 +140,7 @@ def user_register():
 @catch_all_exceptions
 def get_user_office_activities():
     body_data = request.get_json()
-    check_server_api_key(body_data)
+    check_local_server_api_key_and_inject_office(body_data)
 
     office = check_empty_error(body_data["office"])
 
@@ -136,7 +153,7 @@ def get_user_office_activities():
 @catch_all_exceptions
 def user_login():
     body_data = request.get_json()
-    check_server_api_key(body_data)
+    check_local_server_api_key_and_inject_office(body_data)
 
     user_id = check_empty_error(body_data["user_id"])
     office = check_empty_error(body_data["office"])
@@ -151,7 +168,7 @@ def user_login():
 @catch_all_exceptions
 def user_setting():
     body_data = request.get_json()
-    check_server_api_key(body_data)
+    check_local_server_api_key_and_inject_office(body_data)
 
     user_id = check_empty_error(body_data["user_id"])
     light = check_empty_error(body_data["light"])

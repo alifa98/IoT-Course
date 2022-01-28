@@ -42,7 +42,8 @@ CREATE TABLE `ACTIVITY` (
 
 CREATE TABLE `OFFICE` (
             `ID` INT PRIMARY KEY NOT NULL,
-            `NAME` TEXT NOT NULL
+            `NAME` TEXT NOT NULL,
+            `API_KEY` VARCHAR(512) NOT NULL UNIQUE       
 );
 
 

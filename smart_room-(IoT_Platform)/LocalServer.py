@@ -14,9 +14,8 @@ from Utils import catch_all_exceptions, check_empty_error, create_response
 server = Flask(__name__)
 
 LOCAL_SQLITE_DB_PATH = "localServer.db"
-LOCAL_OFFICE_ID = 1
 MAIN_SERVER_API_URL = "http://localhost:5001"
-MAIN_SERVER_API_KEY = "9634024"
+MAIN_SERVER_API_KEY = "9634024"  # GET FROM MAIN SERVER ADMINSTRAITON
 DEFAULT_REQUEST_HEADER = {"Content-Type": "application/json"}
 
 ### Database ###
@@ -159,7 +158,6 @@ def admin_user_register():
     main_server_request_payload = {
         "apiKey": MAIN_SERVER_API_KEY,
         "password": password,
-        "office": LOCAL_OFFICE_ID,
         "room": room
     }
 
@@ -180,8 +178,7 @@ def admin_activities():
     check_admin_session(body_data)
 
     main_server_request_payload = {
-        "apiKey": MAIN_SERVER_API_KEY,
-        "office": LOCAL_OFFICE_ID
+        "apiKey": MAIN_SERVER_API_KEY
     }
 
     main_server_json_result = requests.post(MAIN_SERVER_API_URL+"/api/user/activities",
@@ -204,7 +201,6 @@ def user_login():
 
     main_server_request_payload = {
         "apiKey": MAIN_SERVER_API_KEY,
-        "office": LOCAL_OFFICE_ID,
         "user_id": user_id
     }
 
@@ -234,7 +230,6 @@ def user_setting(usr):
 
     main_server_request_payload = {
         "apiKey": MAIN_SERVER_API_KEY,
-        "office": LOCAL_OFFICE_ID,
         "user_id": user_id,
         "light": lights
     }
