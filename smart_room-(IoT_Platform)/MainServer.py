@@ -5,7 +5,6 @@ import sqlite3
 import string
 from flask import *
 
-from markupsafe import re
 from CustomError import CustomError
 
 from Utils import catch_all_exceptions, check_empty_error, create_response

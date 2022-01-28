@@ -196,6 +196,7 @@ def user_login():
     body_data = request.get_json()
     user_id = check_empty_error(body_data["user_id"])
     password = check_empty_error(body_data["password"])
+    light_sensor_value = check_empty_error(int(body_data["light"]))
 
     session_id = user_login_db(user_id, password)
 
@@ -208,12 +209,14 @@ def user_login():
                                             data=json.dumps(main_server_request_payload), headers=DEFAULT_REQUEST_HEADER).json()
     if(main_server_json_result["status"] != "success"):
         raise CustomError(main_server_json_result["reason"])
+    light_diff_value = int(
+        main_server_json_result["light"]) - light_sensor_value
 
-    return create_response(True, {"sessionId": session_id, "light": main_server_json_result["light"]})
+    return create_response(True, {"sessionId": session_id, "light":  light_diff_value if light_diff_value > 0 else 0})
 
 
-@server.route("/api/user/<usr>", methods=["POST"])
-@catch_all_exceptions
+@ server.route("/api/user/<usr>", methods=["POST"])
+@ catch_all_exceptions
 def user_setting(usr):
     body_data = request.get_json()
 
