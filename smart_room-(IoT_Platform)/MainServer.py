@@ -1,6 +1,8 @@
 import datetime
 import hashlib
+import secrets
 import sqlite3
+import string
 from flask import *
 
 from markupsafe import re
@@ -101,6 +103,19 @@ def get_office_by_api_key_db(api_key):
 
     return office_row
 
+
+def register_office_db(name, api_key):
+    db_connection = sqlite3.connect(LOCAL_SQLITE_DB_PATH)
+    cursor = db_connection.cursor()
+    cursor.execute(
+        "INSERT INTO `OFFICE` (`NAME`, `API_KEY`) VALUES (?, ?) ;",
+        (name, api_key)
+    )
+    office_id = cursor.lastrowid
+    db_connection.commit()
+    db_connection.close()
+
+    return office_id
 ## Utiles ##
 
 
@@ -177,6 +192,22 @@ def user_setting():
     update_user_light_db(user_id, office, light)
 
     return create_response(True)
+
+
+@server.route("/api/office/register", methods=["POST"])
+@catch_all_exceptions
+def office_register():
+    body_data = request.get_json()
+
+    name = check_empty_error(str(body_data["name"]), "Office Name")
+
+    api_key = ''.join(secrets.choice(
+        string.ascii_letters + string.digits) for _ in range(8))
+
+    # user does not need to be aware of its office id. it is only have to know its api key for communication with the server.
+    office_id = register_office_db(name, api_key)
+
+    return create_response(True, {"api_key": api_key, "office_id": office_id})
 
 
 if __name__ == '__main__':
