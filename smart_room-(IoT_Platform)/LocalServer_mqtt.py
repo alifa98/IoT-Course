@@ -5,7 +5,6 @@ import random
 import requests
 from paho.mqtt import client as mqtt_client
 
-from CustomError import CustomError
 
 broker = 'localhost'
 port = 1883
