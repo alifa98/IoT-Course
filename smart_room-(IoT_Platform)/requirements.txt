@@ -22,6 +22,8 @@ cffi==1.15.0
 chardet==4.0.0
 Charon==1.0
 click==8.0.3
+CoAPthon==4.0.2
+-e git+git@github.com:Tanganelli/CoAPthon3.git@5b75e56b0a1791e2f56c486b511bb88d2cb58458#egg=CoAPthon3
 colorama==0.4.4
 contextlib2==0.6.0.post1
 cryptography==36.0.1
